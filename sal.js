@@ -50,13 +50,13 @@ var wCreds = window.XMLHttpRequest && "withCredentials" in new XMLHttpRequest;
 					
 					return methods;
 				},
-				"success": function (hanlder) {
-					conf.success = hanlder;
+				"success": function (handler) {
+					conf.success = handler;
 		
 					return methods;
 				},
 				"failure": function (handler) {
-					conf.failure = hanlder;
+					conf.failure = handler;
 		
 					return methods;
 				},
@@ -129,7 +129,7 @@ var wCreds = window.XMLHttpRequest && "withCredentials" in new XMLHttpRequest;
 		conf.async = true;
 
 		// XMLHttpRequest obj
-		this.xhr = (window.XMLHttpRequest) ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+		this.xhr = new XMLHttpRequest(); // IE7++
 
 		//IE8
 		//this.xhr.overrideMimeType('text/plain; charset=x-user-defined');
