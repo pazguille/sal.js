@@ -1,239 +1,232 @@
 /*
-* Simple Ajax Librarysal v0.1
-*/
+http://en.wikipedia.org/wiki/Internet_media_type
+ request.types = {
+      html: 'text/html'
+    , json: 'application/json'
+    , urlencoded: 'application/x-www-form-urlencoded'
+    , 'form': 'application/x-www-form-urlencoded'
+    , 'form-data': 'application/x-www-form-urlencoded'
+  };
 
-// http://www.html5rocks.com/en/tutorials/file/xhr2/
-
-/*
-TODO: Add Events
-readystatechange: The readyState attribute changes at some seemingly arbitrary times for historical reasons.
-loadstart: When the request starts.
-progress: While sending and loading data.
-abort: When the request has been aborted. For instance, by invoking the abort() method.
-error: When the request has failed.
-load: When the request has successfully completed.
-timeout: When the author specified timeout has passed before the request could complete.
-loadend: When the request has completed (either in success or failure).
-
-
-var progEv = !!(window.ProgressEvent);
-var fdata = !!(window.FormData);
-var wCreds = window.XMLHttpRequest && "withCredentials" in new XMLHttpRequest;
+Hacer que funcione CORS en IE 
+http://www.leggetter.co.uk/2010/03/12/making-cross-domain-javascript-requests-using-xmlhttprequest-or-xdomainrequest.html
+http://www.html5rocks.com/en/tutorials/cors/
 
 */
 
-(function (window, undefined) {
-
-  var sal = (function () {
-	
-	var Ajax = function (conf) {
-		var that = this,
-			conf = conf || {},
-			methods = {
-				"header": function (key, value) {
-					conf.headers[key] = value;
-	
-					return methods;
-				},
-				"data": function (data) {
-					conf.data = data;
-		
-					return methods;
-				},
-				"async": function (value) {
-					conf.async = value;
-					
-					return methods;
-				},
-				"cache": function (value) {
-					conf.cache = value;
-					
-					return methods;
-				},
-				"success": function (handler) {
-					conf.success = handler;
-		
-					return methods;
-				},
-				"failure": function (handler) {
-					conf.failure = handler;
-		
-					return methods;
-				},
-				"responseType": function (value) {
-					conf.responseType = value;
-	
-					return methods;
-				},
-				"form": function (id, obj) {
-					conf.data = new FormData(id);
-	
-					for (var key in obj) {
-						conf.data.append(key, obj[key]);
-					}
-	
-					return methods;
-				},
-	
-				"send": function () {
-					var xhr = that.xhr;
-
-					if (conf.jsonp) {
-						that.setJSONP(conf.url, conf.success);
-						return that.xhr;
-					}
-
-					if (typeof xhr.onload === "object" && typeof xhr.onerror === "object") {
-						xhr.onload = function () {
-							if (conf.hasOwnProperty("success")) {
-								var response = (conf.json) ? JSON.parse(xhr.response) : xhr.response;
-					 			conf.success(response, xhr.status);
-						 	}
-						};
-						
-						xhr.onerror = function () {
-							if (conf.hasOwnProperty("failure")) {
-						 		conf.failure(xhr);
-						 	}
-						};
-
-					// Fallback
-					} else {
-						xhr.onreadystatechange = function () {
-							that.stateChange(conf);
-						};
-					}
-					
-
-					if (window.ProgressEvent) {
-						xhr.onprogress = function (e) {};
-					}
 
 
-					xhr.open(conf.method, conf.url, conf.async);
-					that.setHeaders(conf.headers);
-					xhr.responseType = conf.responseType;
-					xhr.send(conf.data);
-					
-					return xhr;
-				}
-			};
+(function (exports) {
+	'use strict';
 
-		// Configuration
-		conf.headers = conf.headers || {};
-		conf.headers["Accept"] = "text/javascript, application/json, text/html, application/xml, text/xml, */*";
-		conf.headers["Cache-Control"] = "cache";
-		conf.headers["Content-Type"] = "application/x-www-form-urlencoded";
-		conf.responseType = ""; //"text", "arraybuffer", "blob", or "document"
-		conf.cache = true;
-		conf.async = true;
-
-		// XMLHttpRequest obj
-		this.xhr = new XMLHttpRequest(); // IE7++
-
-		//IE8
-		//this.xhr.overrideMimeType('text/plain; charset=x-user-defined');
-
-		return methods;
+	/**
+	* Determine XHR.
+	*/
+	function getXHR() {
+		var req;
+		if (exports.XMLHttpRequest) {
+			req = new XMLHttpRequest();
+		}else if (exports.ActiveXObject) {
+			req = new ActiveXObject("Microsoft.XMLHTTP");
+		}
+		return req;
 	};
-	
-	Ajax.prototype.setJSONP = function (url, handler) {
-		var that = this;
-		var callback = "_jsonp" + parseInt(new Date().getTime());
 
-		window[callback] = function (data, status) {
-			window[callback] = undefined;
-			window[callback] = null;
+	function Ajax(conf) {
+			/**
+			* Private Members
+			*/
+			var that = this,
+				xhr;
 
-			return handler(data, status);
+			/**
+			* Protected Members
+			*/
+
+			// podria hacer un extend entre this y conf, no?
+			this.url = conf.url || './';
+			this.success = conf.success;
+			this.error = conf.error;
+			this.data = this.toQueryString(conf.data),
+			this.dataType = conf.dataType;
+
+			if (this.dataType == 'jsonp') {
+				return this.getJSONP();
+			}
+
+			this.headers = conf.headers;
+			this.xhr = xhr = getXHR();
+
+			/**
+			* Public Members
+			*/
+
+			// Set XHR options
+			xhr.responseType = conf.responseType || "";
+
+			xhr.open(conf.method, this.url, conf.async, conf.user, conf.password);
+
+			// Set Request Header
+			this.setHeaders();
+
+			// Add events
+			xhr.onreadystatechange = function () {
+				that.stateChange.call(that);
+			}
+
+			// Send
+			xhr.send(this.data);
+
+			return this;
 		};
 
-		var scriptTag = document.createElement("script");
-			scriptTag.charset = 'utf-8';
-			scriptTag.src = url.replace("salp", callback);
+	Ajax.prototype.setHeaders = function () {
+		var key,
+			headers = this.headers,
+			xhr = this.xhr,
+			dataType = {
+				'default': 'application/x-www-form-urlencoded; charset=UTF-8',
+				'json': 'application/json, text/javascript',
+				'jsonp': 'application/javascript'
+			};
 
-		
-		document.body.appendChild(scriptTag);
+		// Default
+		// http://en.wikipedia.org/wiki/Internet_media_type
+		// CORS doesn't support setRequestHeader
+		if (this.dataType === 'default') {
+			xhr.setRequestHeader('Content-Type', dataType[this.dataType]);
+			xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
+			xhr.setRequestHeader('Accept','text/javascript, application/json, text/html, application/xml, text/xml, *\/*');
+			xhr.setRequestHeader('Cache-Control','cache');
+		}
+
+		for (key in headers) {
+			xhr.setRequestHeader(key, headers[key]);
+		}
+
+		return this;
+	};
+
+	Ajax.prototype.stateChange = function () {
+		var xhr = this.xhr,
+			status,
+			response;
+			
+		if (xhr.readyState === xhr.DONE) {
+			status = xhr.status;
+			if (this.hasOwnProperty('success') && (status >= 200 && status < 300) || status === 304 || status === 0) {
+				response = ((this.dataType === 'json') ? JSON.parse(xhr.response || xhr.responseText) : xhr.response);
+	 			this.success(response, status, xhr);
+
+		 	} else if (this.hasOwnProperty('error')) {
+		 		this.error(status, xhr);
+		 	}
+		 }
+
+	 	return this;
+	};
+
+	Ajax.prototype.toQueryString = function (data) {
+		var key,
+			queryString = [];
+
+		for (key in data) {
+			queryString.push((encodeURIComponent(key) + '=' + encodeURIComponent(data[key])));
+		}
+
+		return queryString.join('&');
+	};
+	
+	Ajax.prototype.getJSONP = function () {
+		var that = this,
+			url = this.url,
+			callback = "_jsonp" + parseInt(new Date().getTime());
+
+		exports[callback] = function (data, status) {
+			exports[callback] = undefined;
+
+			return that.success(data, status);
+		};
+
+		if (url.match("\\?") === null) {
+			url += "?callback=" + callback;
+		} else {
+			url += "&callback=" + callback;
+		}
+
+		if (this.data) {
+			url += ("&" + this.data);
+		}
+
+		var scriptTag = document.createElement("script");
+		scriptTag.charset = "utf-8";
+		scriptTag.src = url;
+
 		scriptTag.onload = function () {
 			document.body.removeChild(scriptTag);
 		};
-		
-	};
 
-	Ajax.prototype.stateChange = function (conf) {
-		var xhr = this.xhr;
-		 if (xhr.readyState == 4 ) {
-			var response = xhr.response|| xhr.responseText;
-
-		 	if ((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304 || (xhr.status == 0 && response)) {
-				if (conf.hasOwnProperty("success")) {
-					//IE7 JSON.parse
-					response = (conf.json) ? JSON.parse(response) : response;
-		 			conf.success(response, xhr.status);
-			 	}
-		 	} else {
-			 	if (conf.hasOwnProperty("failure")) {
-			 		conf.failure(xhr);
-			 	}
-			}
-
-		 }
-	};
-
-	Ajax.prototype.setHeaders = function (headers) {
-		for (var key in headers) {
-			this.xhr.setRequestHeader(key, headers[key]);
+		scriptTag.onerror = function () {
+			if (that.hasOwnProperty("error")) {
+		 		return that.error();
+		 	}
 		};
+
+		document.body.appendChild(scriptTag);
+
+		return this;
 	};
 
-	var core = {
 
-		"get": function (url) {
-			var cnx = new Ajax({
-				"method": "get",
-				"url": url
-			});
-
-			return cnx;
+	var sal = {
+		'json': function (url, conf, fn) {
+			sal.get(url, conf, fn, 'json');
 		},
-		"post": function (url) {
-			var cnx = new Ajax({
-				"method": "post",
-				"url": url
-			});
-
-			return cnx;
-		},
-		"json": function (url) {
-			var cnx = new Ajax({
-				"method": "get",
-				"url": url,
-				"headers": {
-					"Content-Type": "application/json"
-				},
-				"json": true
-			});
-
-			return cnx;
-		},
-		"jsonp": function (url) {			
-			var cnx = new Ajax({
-				"method": "get",
-				"url": url,
-				"headers": {
-					"Content-Type": "application/json"
-				},
-				"jsonp": true
-			});
-
-			return cnx;
+		'jsonp': function (url, conf, fn) {
+			sal.get(url, conf, fn, 'jsonp');
 		}
 	};
 
-    return core;
+	["get", "post"].forEach(function (method, i) {
+		sal[method] = function (url, conf, fn, type) {
+			if (typeof conf === 'function') {
+				fn = conf;
+				conf = {};
+			}
 
-  })();
+			conf = conf || {};
+			conf.url = url || conf.url;
+			conf.success = fn || conf.success;
+			conf.dataType = type || conf.dataType || 'default';
 
-  window.sal = sal;
+			// Default
+			conf.method = method;
 
-})(window);
+			return new Ajax(conf);
+		};
+	});
+
+	exports.sal = sal;
+
+}(this));
+
+
+/*options = {
+	method: String
+	url: String
+	async: Boolean
+	user: String
+	password: String
+	headers: Object
+		contentType
+		cache
+		(todos los headers que son configurables, esto que lo haga el user o le ofrezco algo?)
+		http://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Requests
+	timeout: Number
+	withCredentials:Boolean
+	responseType: "", "text", "arraybuffer", "blob", or "document"
+	success: Function
+	error: Function
+	dataType: json, jsonp, default;
+	data: Objcet
+}*/

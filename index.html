@@ -1,47 +1,36 @@
 <!DOCTYPE html>
-<!--[if IE]><![endif]-->
-<!--[if lt IE 7 ]> <html lang="es" class="no-js ie6"> <![endif]-->
-<!--[if IE 7 ]>    <html lang="es" class="no-js ie7"> <![endif]-->
-<!--[if IE 8 ]>    <html lang="es" class="no-js ie8"> <![endif]-->
-<!--[if IE 9 ]>    <html lang="es" class="no-js ie9"> <![endif]-->
-<!--[if (gt IE 9)|!(IE)]><!--> <html lang="es" class="no-js"> <!--<![endif]-->
+<html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />		
 		<title>Simple Ajax Library</title>
 	</head>
-
 	<body>
 		<script src="sal.js"></script>
 		<script>
+			sal.post('ajax.html', {
+				'data': {'single': 'Single', 'multiple': 'Multiple', 'check': 'Check', 'radio': 'Radio'},
+				'error': function (status, xhr) {
+					console.log(status);
+				}
+			}, function (response, status, xhr) {
+				console.log("OK: " + status);
+			});
 
-			sal.get("ajax.html")
-				.success(function (data, status) {
-					// console.log(data);
-					alert(data);
-				})
-				.send();
+			sal.jsonp("https://api.instagram.com/v1/media/popular", {
+				"success": function (response, status) {
+					console.log(response.data);
+				},
+				"error": function () {
+					console.log("Hacer otra cosa");
+				},
+				"data": {
+					"client_id": "8592b07f6eaf4efb9e3b6c7a054b6aa0"
+				}
+			});
 
-			sal.post("ajax.html")
-				.success(function (data, status) {
-					//console.log(data);
-					alert(data);
-				})
-				.send();
-
-			sal.json("ajax.json")
-				.success(function (data, status) {
-					//console.log(data);
-					alert(data);
-				})
-				.send();
-
-			/*sal.jsonp("http://api.flickr.com/services/feeds/photos_public.gne?tags=cat&tagmode=any&format=json&jsoncallback=salp")
-				.success(function (data) {
-					//console.log(data);
-					alert(data);
-				})
-				.send();*/
+			sal.json("ajax.json", function (response, status) {
+				console.log(response);
+			});
 		</script>
 	</body>
 </html>
